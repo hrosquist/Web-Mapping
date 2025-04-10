@@ -37,9 +37,9 @@
     <!--  Insert the title div here (part V) -->
 
     <div id='title'>
-              <h1>Map of Portland, Oregon</h1>
-              <h2>By Hailey Rosquist</h2>
-        </div>
+          <h1>Map of Portland, Oregon</h1>
+          <h2>By Hailey Rosquist</h2>
+    </div>
 
 
     <script>
@@ -60,7 +60,11 @@
         // Add popups for markers here. Yes, before the markers!  (part IV)
         var popup = new mapboxgl.Popup({ offset: 25 })
             .setHTML('Hello World. Welcome to Portland!');
-          
+         
+        var popup_pioneerplace = new mapboxgl.Popup({
+              closeOnClick: false, anchor: 'top-left'
+            })
+            .setHTML('<a href="https://www.pioneerplace.com/en/">pioneer place</a>')
         
         // Add any other variables such as markers here (part III)
         var marker = new mapboxgl.Marker({color:'rgb(0,255,0)'})
@@ -69,7 +73,7 @@
             .addTo(map);
 
         var popup_layer = new mapboxgl.Popup({
-              closeOnClick: true, anchor: 'bottom-left'
+              closeOnClick: false, anchor: 'bottom-left'
             }) 
             .setLngLat([-122.64, 45.5]) //popup coordinates
             .setHTML('<h1>Hi Portland!</h1>') //popup text
@@ -81,6 +85,7 @@
 
         var marker3 = new mapboxgl.Marker({color:'rgb(389,230,0)'})
             .setLngLat([-122.678, 45.518])
+            .setPopup(popup_pioneerplace)
             .addTo(map);
 
         var popup_layer_voodoo = new mapboxgl.Popup({
@@ -90,12 +95,7 @@
             .setHTML('<a href="https://www.voodoodoughnut.com">voodoo donuts</a>')
             .addTo(map);
 
-        var popup_layer_pioneerplace = new mapboxgl.Popup({
-              closeOnClick: false, anchor: 'top-left'
-            })
-            .setLngLat([-122.6771700, 45.5183726])
-            .setHTML('<a href="https://www.pioneerplace.com/en/">pioneer place</a>')
-            .addTo(map);
+       
 
         // Add optional advanced "On load" function here
         
