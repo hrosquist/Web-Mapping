@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>Swipe between maps</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.css' rel='stylesheet' />
+    
+    <!-- JS and CSS for the swipe plugin -->
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-compare/v0.4.0/mapbox-gl-compare.js'></script>
+    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-compare/v0.4.0/mapbox-gl-compare.css' type='text/css' />
+    
+    <style>
+        body { margin:0; padding:0; overflow: hidden; }
+        body * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        .map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        #title { 
+            z-index: 9999; 
+            background-color: rgb(255, 255, 255); 
+            opacity: 70%; 
+            text-align: center;
+            position: absolute;
+            width: 100%;
+        }
+        .LegendContainer {
+            position: absolute;
+            bottom: 30px;
+            left: 10px;
+            z-index: 9999;
+            background-color: rgba(255,255,255,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        .legend-key {
+            display: inline-block;
+            width: 20px;
+            height: 10px;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="comparison-container">
+        <div id='owners' class='map'></div>
+        <div id='renters' class='map'></div>
+    </div>
+
+    <div id='title'>
+        <h1>Owners vs Renters Comparison Map</h1>
+        <h2>By Hailey Rosquist</h2>
+    </div>
+
+    <!-- legend -->
+    <div class="LegendContainer">
+        <strong>Legend</strong><br>
+        <div><span class="legend-key" style="background-color:hsl(225, 100%, 97%)"></span> 0–17%</div>
+        <div><span class="legend-key" style="background-color:hsl(203, 47%, 82%)"></span> 17–22%</div>
+        <div><span class="legend-key" style="background-color:hsl(202, 57%, 63%)"></span> 22–27%</div>
+        <div><span class="legend-key" style="background-color:#3182bd"></span> 27–32%</div>
+        <div><span class="legend-key" style="background-color:hsl(210, 90%, 32%)"></span> 32%+</div>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiaHJvc3F1aXN0IiwiYSI6ImNtOTF1ZWhoZzA0eWcyam42cWszanM5ZnAifQ.cEBrgBlFHQg9Utrk2ovNeg';
+
+        var ownerMap = new mapboxgl.Map({
+            container: 'owners',
+            style: 'mapbox://styles/mapbox/dark-v10',
+            center: [-122.65884892880553, 45.5152912548115],
+            zoom: 10
+        });
+
+        // zoom control on owners
+        ownerMap.addControl(new mapboxgl.NavigationControl());
+
+        var renterMap = new mapboxgl.Map({
+            container: 'renters',
+            style: 'mapbox://styles/mapbox/dark-v10',
+            center: [-122.65884892880553, 45.5152912548115],
+            zoom: 10
+        });
+
+        // zoom control on renters
+        renterMap.addControl(new mapboxgl.NavigationControl());
+
+        ownerMap.on('load', function () {
+            ownerMap.addLayer({
+                id: 'Owner Data',
+                type: 'fill',
+                source: {
+                    type: 'vector',
+                    url: 'mapbox://hrosquist.dwokovyv'
+                },
+                'source-layer': 'Owner-Renter-Pop-55h8rg',
+                paint: {
+                    'fill-color': [
+                        "step",
+                        ["get", "Own"],
+                        "hsl(225, 100%, 97%)",
+                        17.0,
+                        "hsl(203, 47%, 82%)",
+                        22.0,
+                        "hsl(202, 57%, 63%)",
+                        27.0,
+                        "#3182bd",
+                        32.0,
+                        "hsl(210, 90%, 32%)"
+                    ],
+                    "fill-opacity": 0.7
+                }
+            });
+
+            ownerMap.on('mousemove', 'Owner Data', function (e) {
+                ownerMap.getCanvas().style.cursor = 'pointer';
+                var coordinates = e.lngLat;
+                var description = e.features[0].properties.Own;
+                popup.setLngLat(coordinates)
+                    .setHTML("Owners: " + description + "%")
+                    .addTo(ownerMap);
+            });
+
+            ownerMap.on('mouseleave', 'Owner Data', function () {
+                ownerMap.getCanvas().style.cursor = '';
+                popup.remove();
+            });
+        });
+
+        renterMap.on('load', function () {
+            renterMap.addLayer({
+                id: 'Renter Data',
+                type: 'fill',
+                source: {
+                    type: 'vector',
+                    url: 'mapbox://hrosquist.dwokovyv'
+                },
+                'source-layer': 'Owner-Renter-Pop-55h8rg',
+                paint: {
+                    'fill-color': [
+                        "step",
+                        ["get", "Rent"],
+                        "hsl(225, 100%, 97%)",
+                        17.0,
+                        "hsl(203, 47%, 82%)",
+                        22.0,
+                        "hsl(202, 57%, 63%)",
+                        27.0,
+                        "#3182bd",
+                        32.0,
+                        "hsl(210, 90%, 32%)"
+                    ],
+                    "fill-opacity": 0.7
+                }
+            });
+
+            renterMap.on('mousemove', 'Renter Data', function (e) {
+                renterMap.getCanvas().style.cursor = 'pointer';
+                var coordinates = e.lngLat;
+                var description = e.features[0].properties.Rent;
+                popup.setLngLat(coordinates)
+                    .setHTML("Renters: " + description + "%")
+                    .addTo(renterMap);
+            });
+
+            renterMap.on('mouseleave', 'Renter Data', function () {
+                renterMap.getCanvas().style.cursor = '';
+                popup.remove();
+            });
+        });
+
+        var popup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false
+        });
+
+        var map = new mapboxgl.Compare(ownerMap, renterMap, '#comparison-container', {});
+    </script>
+</body>
+</html>
