@@ -1,0 +1,92 @@
+<!-- A Versatile Layout for Full-screen Maps by Andy Cochran -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Interactive Map of Washington, DC Landmarks</title>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.4.3/js/foundation.js"></script>
+
+    <!-- CSS Links -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/foundation/6.4.3/css/foundation.min.css" rel="stylesheet" />
+    <link href="VersitileLayout.css" rel="stylesheet" />
+</head>
+
+<body>
+
+    <div class="site-header">
+        <strong class="site-title">Explore Washington, DC</strong>
+    </div>
+
+    <div class="site-main grid-x has-content-open">
+
+        <!-- Search box (optional) -->
+        <div class="search-container cell medium-3 large-2">
+            <input type="text" placeholder="Search..." class="search" />
+            <ul class="search-results no-bullet">
+                <li>Search Result 1</li>
+                <li>Search Result 2</li>
+                <li>Search Result 3</li>
+            </ul>
+        </div>
+
+        <!-- Map container with iframe -->
+        <div class="map-container cell medium-auto large-order-2">
+            <!-- VI.2: Embed your map here -->
+            <iframe src="filter-markers.html" title="DC Map" width="100%" height="100%" style="border: none;"></iframe>
+        </div>
+
+        <!-- Sidebar panel -->
+        <div class="sidebar cell medium-3 large-2 large-order-1 show-for-medium">
+            <h5>Map Layer Controls</h5>
+            <p>
+                Use the interactive map on the right to explore Washington, DC. Click icons to see details about theaters, bars, music venues, and bike stations.
+                Use the legend in the upper-right of the map to turn layers on and off.
+            </p>
+        </div>
+
+        <!-- Close button -->
+        <div class="content-close-button-container">
+            <a href="#" class="content-close-button">×</a>
+        </div>
+
+        <!-- Content panel -->
+        <div class="content cell large-5 large-order-3">
+            <h2>Points of Interest in DC</h2>
+            <p>
+                This mapping tool shows some of the cultural and recreational hotspots throughout Washington, DC.
+                Categories include theaters, bars, music venues, and bike stations.
+                Each location is marked with an icon. Hover to change the cursor, and click to see details.
+            </p>
+            <p>
+                Zoom and pan are limited to keep the focus on the DC area.
+            </p>
+        </div>
+
+    </div>
+
+    <!-- JS for responsive behavior -->
+    <script>
+        $(document).ready(function () {
+            $('.content-close-button').click(function () {
+                $('.content-close-button').hide();
+                $('.content').hide();
+                $('.site-main').removeClass('has-content-open');
+                window.dispatchEvent(new Event('resize'));
+            });
+
+            $('.content-link').click(function () {
+                $('.content-close-button').show();
+                $('.content').show();
+                $('.site-main').addClass('has-content-open');
+                window.dispatchEvent(new Event('resize'));
+            });
+        });
+    </script>
+
+</body>
+
+</html>
