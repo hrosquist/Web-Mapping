@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Flight Tracker</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <style>
+    /* Layout styling */
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+    /* Plane icon */
+    .plane-marker {
+      background-image: url('https://cdn-icons-png.flaticon.com/512/870/870143.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      width: 40px;
+      height: 40px;
+      cursor: grab;
+    }
+
+    /* Title */
+    #map-title {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Info box with flight stats */
+    #info-box {
+      position: absolute;
+      top: 50px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+      z-index: 1;
+      font-size: 14px;
+    }
+
+    /* Flight progress bar */
+    #progress-bar {
+      position: absolute;
+      top: 220px;
+      left: 10px;
+      width: 200px;
+      height: 10px;
+      background: #eee;
+      border-radius: 5px;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #007cbf;
+    }
+
+    /* Button styling */
+    #start-button, #pause-button {
+      position: absolute;
+      z-index: 1;
+      padding: 6px 12px;
+      font-size: 14px;
+      border: none;
+      background: #007cbf;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #start-button { top: 240px; left: 10px; }
+    #pause-button { top: 240px; left: 110px; }
+
+    /* Slider styling */
+    #slider-container {
+      position: absolute;
+      top: 280px;
+      left: 10px;
+      z-index: 1;
+      width: 200px;
+    }
+
+    #slider {
+      width: 100%;
+    }
+
+    /* Attribution label */
+    #attribution {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 4px 8px;
+      border-radius: 4px;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Title and Containers -->
+<div id="map-title">Flight Tracker: Seattle to Kansas City</div>
+<div id="map"></div>
+
+<!-- Info Panel -->
+<div id="info-box">
+  <strong>Flight Status for AS296</strong><br>
+  Time: <span id="time">0 min</span><br>
+  Distance: <span id="distance">0 mi</span><br>
+  Altitude: <span id="altitude">0 ft</span><br>
+  Speed: <span id="speed">0 mph</span><br>
+  Lat/Lng: <span id="coords">-</span>
+</div>
+
+<!-- Progress bar and controls -->
+<div id="progress-bar"><div id="progress-fill"></div></div>
+<button id="start-button">Start Flight</button>
+<button id="pause-button">Pause</button>
+
+<!-- Manual slider -->
+<div id="slider-container">
+  <input type="range" min="0" max="200" value="0" id="slider" />
+</div>
+
+<!-- Attribution -->
+<div id="attribution">
+  <a href="https://www.flaticon.com/free-icons/plane" title="plane icons" target="_blank" rel="noopener noreferrer">
+    Plane icons created by Freepik - Flaticon
+  </a>
+</div>
+
+<script>
+  // Set up Mapbox
+  mapboxgl.accessToken = 'pk.eyJ1IjoiaHJvc3F1aXN0IiwiYSI6ImNtOTF1ZWhoZzA0eWcyam42cWszanM5ZnAifQ.cEBrgBlFHQg9Utrk2ovNeg';
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/satellite-streets-v12',
+    center: [-108, 43.5],
+    zoom: 4
+  });
+
+  // Define start/end coordinates and precompute path
+  const start = [-122.307, 47.4515];
+  const end = [-94.725, 39.2992];
+  const totalDistance = turf.distance(turf.point(start), turf.point(end), { units: 'miles' });
+  const totalFlightMinutes = 211;
+  const avgSpeed = (totalDistance / totalFlightMinutes) * 60;
+  const numPoints = 200;
+  const pathCoords = [];
+
+  const line = turf.lineString([start, end]);
+  for (let i = 0; i <= numPoints; i++) {
+    const segment = turf.along(line, (i / numPoints) * totalDistance, { units: 'miles' });
+    pathCoords.push(segment.geometry.coordinates);
+  }
+  const arcLine = turf.lineString(pathCoords);
+
+  // State variables
+  let planeMarker, animationIndex = 0, paused = false, animationTimeout;
+
+  // Update flight statistics at each coordinate
+  function updateFlightStatusFromCoord(coordIndex) {
+    const coord = pathCoords[coordIndex];
+    const dist = turf.distance(turf.point(start), turf.point(coord), { units: 'miles' });
+    const progress = dist / totalDistance;
+    const elapsedMin = Math.floor(progress * totalFlightMinutes);
+
+    let altitude = progress < 0.2 ? (progress / 0.2) * 35000
+                : progress > 0.8 ? ((1 - progress) / 0.2) * 35000
+                : 35000;
+
+    let speed = progress < 0.2 ? (progress / 0.2) * avgSpeed
+              : progress > 0.8 ? ((1 - progress) / 0.2) * avgSpeed
+              : avgSpeed;
+
+    // Update DOM
+    document.getElementById('time').textContent = `${elapsedMin} min`;
+    document.getElementById('distance').textContent = `${dist.toFixed(1)} mi`;
+    document.getElementById('altitude').textContent = `${Math.round(altitude).toLocaleString()} ft`;
+    document.getElementById('speed').textContent = `${Math.round(speed)} mph`;
+    document.getElementById('coords').textContent = `${coord[1].toFixed(2)}, ${coord[0].toFixed(2)}`;
+    document.getElementById('progress-fill').style.width = `${(progress * 100).toFixed(1)}%`;
+
+    // Update marker and slider
+    planeMarker.setLngLat(coord);
+    document.getElementById('slider').value = coordIndex;
+  }
+
+  // Animate the plane step-by-step
+  function animateFlight() {
+    if (animationIndex >= pathCoords.length || paused) return;
+    updateFlightStatusFromCoord(animationIndex++);
+    animationTimeout = setTimeout(animateFlight, 80);
+  }
+
+  map.on('load', () => {
+    // Add flight line to map
+    map.addSource('flight', { type: 'geojson', data: arcLine });
+    map.addLayer({
+      id: 'flight-line',
+      type: 'line',
+      source: 'flight',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#ffffff', 'line-width': 4 }
+    });
+
+    // Add weather markers
+    const weather = ["☀️", "🌧️", "⛅", "🌩️"];
+    pathCoords.forEach((coord, idx) => {
+      if (idx % 40 === 0) {
+        const el = document.createElement('div');
+        el.textContent = weather[Math.floor(Math.random() * weather.length)];
+        el.style.fontSize = '18px';
+        new mapboxgl.Marker({ element: el }).setLngLat(coord).addTo(map);
+      }
+    });
+
+    // Persistent airport popups
+    new mapboxgl.Popup({ closeOnClick: false }).setLngLat(start).setHTML("<strong>Seattle-Tacoma Intl (SEA)</strong>").addTo(map);
+    new mapboxgl.Popup({ closeOnClick: false }).setLngLat(end).setHTML("<strong>Kansas City Intl (MCI)</strong>").addTo(map);
+
+    // Plane marker setup
+    const planeEl = document.createElement('div');
+    planeEl.className = 'plane-marker';
+    planeMarker = new mapboxgl.Marker({ element: planeEl, draggable: true })
+      .setLngLat(start)
+      .addTo(map);
+
+    // Initial display
+    updateFlightStatusFromCoord(0);
+
+    // Handle dragging the marker
+    planeMarker.on('drag', () => {
+      const lngLat = planeMarker.getLngLat();
+      const snapped = turf.nearestPointOnLine(arcLine, [lngLat.lng, lngLat.lat]);
+      animationIndex = Math.round(snapped.properties.index);
+      updateFlightStatusFromCoord(animationIndex);
+    });
+
+    // Slider updates progress
+    document.getElementById('slider').addEventListener('input', (e) => {
+      animationIndex = Number(e.target.value);
+      paused = true;
+      clearTimeout(animationTimeout);
+      document.getElementById('pause-button').textContent = "Resume";
+      updateFlightStatusFromCoord(animationIndex);
+    });
+
+    // Start button begins animation from 0
+    document.getElementById('start-button').onclick = () => {
+      clearTimeout(animationTimeout);
+      animationIndex = 0;
+      paused = false;
+      document.getElementById('pause-button').textContent = "Pause";
+      animateFlight();
+    };
+
+    // Pause/Resume toggles animation state and label
+    document.getElementById('pause-button').onclick = () => {
+      paused = !paused;
+      document.getElementById('pause-button').textContent = paused ? "Resume" : "Pause";
+      if (!paused) animateFlight();
+      else clearTimeout(animationTimeout);
+    };
+  });
+</script>
+
+</body>
+</html>
